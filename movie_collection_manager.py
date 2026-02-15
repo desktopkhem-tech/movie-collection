@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import sys
 import threading
 import tkinter as tk
 from concurrent.futures import ThreadPoolExecutor
@@ -146,6 +147,8 @@ class MovieCollectionManager:
         self.delete_btn.pack(fill="x", pady=4)
         self.trailer_btn = btn(left, text="Open Trailer", command=self.open_trailer)
         self.trailer_btn.pack(fill="x", pady=4)
+        self.play_btn = btn(left, text="Play Movie", command=self.play_selected_movie)
+        self.play_btn.pack(fill="x", pady=4)
 
         self.selected_movie: Movie | None = None
 
@@ -270,8 +273,10 @@ class MovieCollectionManager:
         badge.pack(pady=(0, 6))
 
         frame.bind("<Button-1>", lambda _e, m=movie: self.select_movie(m))
+        frame.bind("<Double-Button-1>", lambda _e, m=movie: self.play_movie(m))
         for child in frame.winfo_children():
             child.bind("<Button-1>", lambda _e, m=movie: self.select_movie(m))
+            child.bind("<Double-Button-1>", lambda _e, m=movie: self.play_movie(m))
 
         self._bind_hover(frame)
         self._load_poster_async(movie, poster_label)
@@ -437,6 +442,33 @@ class MovieCollectionManager:
         if not movie:
             return
         webbrowser.open(f"https://www.youtube.com/results?search_query={movie.name}+{movie.year}+official+trailer")
+
+    def play_selected_movie(self) -> None:
+        if not self.selected_movie:
+            messagebox.showwarning("Play Movie", "Select a movie first")
+            return
+        self.play_movie(self.selected_movie)
+
+    def play_movie(self, movie: Movie) -> None:
+        file_path = (movie.file_path or "").strip()
+        if not file_path:
+            messagebox.showwarning("Play Movie", "No file attached for this movie")
+            return
+
+        if os.name == "nt":
+            try:
+                os.startfile(file_path)
+            except OSError as exc:
+                messagebox.showerror("Play Movie", f"Unable to play movie: {exc}")
+            return
+
+        try:
+            if sys.platform == "darwin":
+                subprocess.Popen(["open", file_path])
+            else:
+                subprocess.Popen(["xdg-open", file_path])
+        except OSError as exc:
+            messagebox.showerror("Play Movie", f"Unable to play movie: {exc}")
 
     def toggle_theme(self) -> None:
         if not ctk:
